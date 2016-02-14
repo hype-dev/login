@@ -1,0 +1,107 @@
+<?php
+	/**
+	 * @name Login Class extending Database Class
+	 * @author Hype
+	 * @version 1.0
+	**/
+	
+	class Login extends Database {
+		// Integer - The user's id
+		private $userid = null;
+		// String - The user's name
+		private $username = '';
+		// String - The user's email adress
+		private $email = '';
+		// Boolean - The user's login status
+		private $logged = FALSE;
+		
+		// Die Funktion wird jedesmal automatisch gestartet, wann immer was mit dieser Klasse gemacht wird
+		// u know... $login = new Login();
+		public function __construct() {
+			session_start();
+			
+			if(isset($_GET['logout'])) {
+				$this->Logout();
+			} elseif(isset($_POST['send-data'])) {
+				$this->loginPostData($_POST['username'], $_POST['password']);
+			} elseif(!empty($_SESION['username']) && ($_SESSION['logged'] == 1)) {
+				$this->loginSessionData();
+			}
+		}
+		
+		// Sucht in der Datenbank nach den Nutzerdaten des, der Funktion gelieferten Nutzernamen als Parameter
+		// Gibt Nutzernamen zurück wenn er existiert (non-object) oder false wenn er nicht gefunden wurde
+		private function getUserData($username) {
+			$stmt = parent::getDatabase()->prepare('SELECT * FROM User WHERE Username = :username');
+			$stmt->execute(array(':username' => $username));
+			
+			// Get Result
+			return $stmt->fetchObject();
+		}
+		
+		// Login durch die Session-Daten, wenn bereits Daten existieren / Sessiondaten
+		private function loginSessionData() {
+			$this->username = $_SESSION['username'];
+			$this->email = $_SESSION['email'];
+			
+			$this->logged = TRUE;
+		}
+		
+		// Login mit den mitgegeben Daten im Formular im HTML Part
+		// Mitgegeben werden die beiden Paramter Username(string) & Passwort(string)
+		private function loginPostData($username, $password) {
+			if(empty($username)) {
+				echo 'Bitte Username eingeben...';
+			} elseif(empty($password)) {
+				echo 'Bitte Passwort eingeben...';
+			} else {
+				if(!filter_var($username, FILTER_VALIDATE_EMAIL)) {
+					$result = $this->getUserData(trim($username));
+				} else {
+					$stmt = parent::getDatabase()->prepare('SELECT * FROM User WHERE Email = :email');
+					$stmt->execute(array(':email' => trim($username)));
+					
+					// Get Result
+					$result = $stmt->fetchObject();
+				}
+				
+				if(!isset($result->ID)) {
+					echo 'Account existiert nicht...';
+				}elseif(hash('sha256', $password) != $result->Password) {
+					echo 'Zugriff verweigert. Falsches Passwort...';
+				} else {
+					$_SESSION['userid'] = $result->ID;
+					$_SESSION['username'] = $result->Username;
+					$_SESSION['email'] = $result->Email;
+					$_SESSION['logged'] = 1;
+					
+					$this->userid = $result->ID;
+					$this->username = $result->Username;
+					$this->email = $result->Email;
+					$this->logged = TRUE;
+				}
+			}
+		}
+		
+		// Vollzieht den Logout, setzt Session zurück, lässt Script 2 sec pausieren und leitet weiter -> Home
+		public function Logout() {
+			$_SESSION = array();
+			session_destroy();
+			$this->logged = FALSE;
+			
+			sleep(2);
+			header('Location: index.php');
+		}
+		
+		// Gibt den aktuellen Status zurück, ob der User eingeloggt ist
+		// logged(boolean)
+		public function isLogged() {
+			return $this->logged;
+		}
+		
+		// Gibt den Usernamen des eingeloggten Nutzers aus
+		// username(string)
+		public function getUsername() {
+			return $this->username;
+		}
+	}
