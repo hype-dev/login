@@ -14,9 +14,7 @@
 		private $email = '';
 		// Boolean - The user's login status
 		private $logged = FALSE;
-		
-		// Die Funktion wird jedesmal automatisch gestartet, wann immer was mit dieser Klasse gemacht wird
-		// u know... $login = new Login();
+
 		public function __construct() {
 			session_start();
 			
